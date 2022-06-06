@@ -2,48 +2,86 @@ import './App.css';
 import { useEffect, useRef, useState } from 'react';
 
 
-function check_tab(element, event, setText) {
-  let code = element.value;
-  if(event.key === "Tab") {
-    /* Tab key pressed */
-    event.preventDefault(); // stop normal
-    let before_tab = code.slice(0, element.selectionStart); // text before tab
-    let after_tab = code.slice(element.selectionEnd, element.value.length); // text after tab
-    let cursor_pos = element.selectionEnd + 1; // where cursor moves after tab - moving forward by 1 char to after tab
-    element.value = before_tab + "\t" + after_tab; // add tab char
-    // move cursor
-    element.selectionStart = cursor_pos;
-    element.selectionEnd = cursor_pos;
-    setText(element.value);
-    //update(element.value, preRef); // Update text to include indent
-  }
+
+
+const calcNewSize = (editRef, canvasRef, size, lineHeight) => {
+    const newHeight = editRef.current.offsetHeight;
+    const ctx = canvasRef.current.getContext('2d', { antialias: false, depth: false });
+    ctx.font = String(lineHeight-3) + 'px monospace';
+
+    const firstLine = Math.floor(editRef.current.scrollTop / lineHeight);
+    const lastLine = firstLine + Math.ceil(editRef.current.offsetHeight / lineHeight);
+    let { width: newWidth } = ctx.measureText(String(Math.max(lastLine, 9999)));
+    newWidth += 4;
+    if (newHeight !== size.height || newWidth !== size.width) {
+        return { width: newWidth, height: newHeight };
+    }
+    return null;
 }
 
-function App() {
-  const preRef = useRef();
-  const editRef = useRef();
-  const [text, setText] = useState('');
-  const [scroll, setScroll] = useState({top: 0, left: 0});
+function App({lineHeight=20, lineColorList}) {
+    const editRef = useRef();
+    const canvasRef = useRef();
+    const [text, setText] = useState('');
+    const [scroll, setScroll] = useState({ top: 0, left: 0 });
+    const [size, setSize] = useState({ width: 0, height: 0 })
+    const [repaint, setRepaint] = useState({});
 
-  useEffect( () => { 
-    preRef.current.scrollTop = editRef.current.scrollTop;
-    preRef.current.scrollLeft = editRef.current.scrollLeft;
-    console.log(editRef.current.scrollTop, 'first visible line = ', editRef.current.scrollTop/25  )
-  }, [scroll]);
+    useEffect(() => {
+        const resizeObserver = new ResizeObserver(() => {
+            setRepaint({});
+        });
 
-  useEffect( () => {
-    const resized = () => {
-      preRef.current.style.width = editRef.current.style.width;
-      preRef.current.style.height = editRef.current.style.height;
-    }
-    new MutationObserver(resized).observe(editRef.current, {
-      attributes: true, attributeFilter: [ "style" ]
-     });
-  }, []);
+        resizeObserver.observe(editRef.current);
+        const editRefCurrent = editRef.current;
+        return () => resizeObserver.unobserve(editRefCurrent);
+    }, []);
 
-  return (
-    <div style={{maxHeight: "300px", maxWidth: '400px'}}>
-      <textarea ref={editRef} id="editing" spellCheck="false" defaultValue={`!Yolo Swaggings
+    useEffect(() => {
+        const newSize = calcNewSize(editRef, canvasRef, size, lineHeight);
+        if (newSize) {
+            setSize(newSize);
+            return;
+        }
+
+        const ctx = canvasRef.current.getContext('2d', { antialias: false, depth: false });
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, size.width, size.height);
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center';
+        ctx.font = String(lineHeight-1) + 'px monospace';
+
+        const firstLine = Math.floor(editRef.current.scrollTop / lineHeight);
+        const lastLine = firstLine + Math.ceil(editRef.current.offsetHeight / lineHeight);
+        let drawY = (Math.floor(editRef.current.scrollTop / lineHeight) - editRef.current.scrollTop / lineHeight) * lineHeight;
+
+        for (let line = firstLine; line < lastLine; line++) {
+            ctx.fillStyle = line%2?'#292929':'#111111';
+            ctx.fillRect(0, drawY, size.width, lineHeight);
+            if (line+1>0){
+                ctx.fillStyle = "#eeeeee";
+                ctx.fillText(String(line + 1), size.width / 2, drawY+lineHeight/2+1);
+            }
+            drawY += lineHeight;
+        }
+
+        ctx.beginPath();
+        ctx.strokeStyle='#aaaaaa';
+        ctx.moveTo(size.width-1, 0);
+        ctx.lineTo(size.width-1, size.height);
+        ctx.moveTo(0, 0);
+        ctx.lineTo(0, size.height);
+        ctx.stroke();
+    }, [size, scroll, text, repaint, lineHeight])
+
+
+    return (
+        <>
+        <div className='component' style={{ width: '100%', height: '100%' }}>
+            <div style={{margin: 0, border: '2px', borderColor:'black'}}>
+            <canvas ref={canvasRef} className='highlighter' width={size.width} height={size.height} style={{ width: size.width, height: size.height }}></canvas>
+            </div>
+            <textarea ref={editRef} className='editor' spellCheck="false" style={{fontSize: (lineHeight-3)+'px', lineHeight: lineHeight+'px'}} defaultValue={`!Yolo Swaggings
         :FEs
 
         What is red?
@@ -51,25 +89,26 @@ function App() {
         b. a number
         ans: a
         `}
-        onInput={(e)=>{
-          setText(e.target.value);
-          setScroll({top: e.target.scrollTop, left: e.target.scrollLeft});
-        }}
-        onChange={(e)=>setScroll({top: e.target.scrollTop, left: e.target.scrollLeft})}
-        onScroll={(e)=>{
-          setScroll({top: e.target.scrollTop, left: e.target.scrollLeft});
-        }}
-        onKeyDown={(e)=>{
-          check_tab(e.target, e, setText);
-          setScroll({top: e.target.scrollTop, left: e.target.scrollLeft});
-        }}
-      >
-      </textarea>
-      <pre ref={preRef} id="highlighting" aria-hidden="true">
-          {text}<br/>
-      </pre>
-    </div>
-  );
+                onInput={(e) => {
+                    setText(e.target.value);
+                    setScroll({ top: e.target.scrollTop });
+                }}
+                onChange={(e) => setScroll({ top: e.target.scrollTop })}
+                onScroll={(e) => {
+                    setScroll({ top: e.target.scrollTop });
+                }}
+                onKeyDown={(e) => {
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        document.execCommand('insertText', false, '    ');
+                    }
+                    setScroll({ top: e.target.scrollTop });
+                }}
+            >
+            </textarea>
+        </div>
+        </>
+    );
 }
 
 export default App;

@@ -1,41 +1,39 @@
-#editing, #highlighting {
-  position: absolute;
-  top: 0;
-  left: 0;
-  /* Both elements need the same text and space styling so they are directly on top of each other */
-  margin: 10px;
-  padding: 10px;
-  border: 0;
-  width: calc(100% - 32px);
-  height: calc(100% - 32px);
+.component { 
+  display: flex;
+  flex-direction: row;
+}
 
+.editor {
+  /* Both elements need the same text and space styling so they are directly on top of each other */
+  border: 1px;
+  border-radius: 0px;
+  border-color: black;
+  padding: 1px;
+  margin: 0px;
+  outline: none;
+  -webkit-box-shadow: none;
+  -moz-box-shadow: none;
+  box-shadow: none;
+  
   overflow-wrap:normal;
   word-wrap: none;
   overflow: scroll;
   white-space: pre;
   resize: none;
 
-  font-size: 15pt;
+  font-size: 20px;
+  line-height: 20px;
   font-family: monospace;
-  line-height: 20pt;
-  tab-size: 2;
-}
-
-#editing {
-  background-color: darkslategray;
-  caret-color: white;
-}
-
-
-#highlighting {
-  appearance: textarea;
-  color:whitesmoke;
-  pointer-events: none;
-}
-#editing, #highlighting{
-  /* Also add text styles to highlighing tokens */
-  font-size: 15px;
-  font-family: monospace;
-  line-height: 25px;
   tab-size: 4;
+  background-color: rgb(42, 42, 42);
+  color: whitesmoke;
+  flex-grow: 1;
+}
+
+.highlighter{
+  width: 80px;
+  /* Both elements need the same text and space styling so they are directly on top of each other */
+  border: 0;
+  
+  pointer-events: none;
 }
